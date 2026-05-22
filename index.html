@@ -1,0 +1,643 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>💪 Workout Calendar</title>
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --purple: #7c3aed;
+      --purple-light: #a78bfa;
+      --rest-bg: linear-gradient(135deg, #38bdf8, #0ea5e9);
+      --workout-bg: linear-gradient(135deg, #7c3aed, #4f46e5);
+      --card-radius: 14px;
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: 'DM Sans', sans-serif;
+      background: #0f0c1e;
+      min-height: 100vh;
+      padding: 32px 20px 60px;
+      overflow-x: hidden;
+    }
+    body::before {
+      content: '';
+      position: fixed; inset: 0;
+      background:
+        radial-gradient(ellipse 70% 50% at 15% 10%, #4f46e520 0%, transparent 60%),
+        radial-gradient(ellipse 60% 60% at 85% 80%, #7c3aed18 0%, transparent 60%);
+      pointer-events: none; z-index: 0;
+    }
+    .container { max-width: 1300px; margin: 0 auto; position: relative; z-index: 1; }
+    .header { text-align: center; margin-bottom: 36px; }
+    .header h1 {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: clamp(2.4rem, 5vw, 4rem);
+      letter-spacing: 3px;
+      background: linear-gradient(90deg, #a78bfa, #60a5fa);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+    }
+    .header p { color: #9ca3af; font-size: 0.9rem; margin-top: 6px; font-weight: 300; }
+    .month-nav { display: flex; align-items: center; justify-content: center; gap: 24px; margin-bottom: 28px; }
+    .month-nav button {
+      background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.12);
+      color: white; width: 42px; height: 42px; border-radius: 50%; font-size: 1.2rem;
+      cursor: pointer; transition: background 0.2s, transform 0.15s;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .month-nav button:hover { background: rgba(124,58,237,0.4); transform: scale(1.1); }
+    .month-label {
+      font-family: 'Bebas Neue', sans-serif; font-size: 2rem; letter-spacing: 2px;
+      color: white; min-width: 240px; text-align: center;
+    }
+    .split-panel {
+      background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 20px; padding: 28px 32px; margin-bottom: 28px; backdrop-filter: blur(8px);
+    }
+    .split-panel-header { display: flex; align-items: center; justify-content: space-between; cursor: pointer; user-select: none; }
+    .split-panel-header h2 { font-family: 'Bebas Neue', sans-serif; font-size: 1.4rem; letter-spacing: 2px; color: var(--purple-light); }
+    .toggle-icon { color: var(--purple-light); font-size: 1.3rem; transition: transform 0.3s; }
+    .toggle-icon.open { transform: rotate(180deg); }
+    .split-body { display: none; margin-top: 22px; }
+    .split-body.open { display: block; }
+    .split-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 12px; margin-bottom: 20px; }
+    .split-day-row { display: flex; flex-direction: column; gap: 6px; }
+    .split-day-row label { font-size: 0.75rem; font-weight: 600; color: #9ca3af; text-transform: uppercase; letter-spacing: 0.06em; }
+    .split-day-row select {
+      background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.12);
+      border-radius: 8px; color: white; padding: 8px 12px;
+      font-family: 'DM Sans', sans-serif; font-size: 0.9rem; outline: none; width: 100%;
+      transition: border-color 0.2s;
+    }
+    .split-day-row select:focus { border-color: var(--purple-light); }
+    .split-day-row select option { background: #1e1b4b; }
+    .split-actions { display: flex; gap: 12px; flex-wrap: wrap; }
+    .btn {
+      padding: 10px 22px; border-radius: 10px; font-family: 'DM Sans', sans-serif;
+      font-size: 0.9rem; font-weight: 600; cursor: pointer; border: none; transition: all 0.2s;
+      display: flex; align-items: center; gap: 8px;
+    }
+    .btn-primary { background: linear-gradient(135deg, #7c3aed, #4f46e5); color: white; }
+    .btn-primary:hover { filter: brightness(1.15); transform: translateY(-1px); }
+    .btn-secondary { background: rgba(255,255,255,0.07); color: #d1d5db; border: 1px solid rgba(255,255,255,0.1); }
+    .btn-secondary:hover { background: rgba(255,255,255,0.12); }
+    .calendar-card {
+      background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 20px; padding: 28px; backdrop-filter: blur(8px);
+    }
+    .day-labels { display: grid; grid-template-columns: repeat(7,1fr); gap: 10px; margin-bottom: 12px; }
+    .day-label { text-align: center; font-size: 0.72rem; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: #6b7280; padding: 6px 0; }
+    .cal-grid { display: grid; grid-template-columns: repeat(7,1fr); gap: 10px; }
+    .cal-cell { position: relative; }
+    .day-card {
+      border-radius: var(--card-radius); padding: 12px 10px; cursor: pointer;
+      transition: transform 0.2s, box-shadow 0.2s; min-height: 110px;
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      text-align: center; color: white; user-select: none;
+    }
+    .day-card.workout-card { background: var(--workout-bg); }
+    .day-card.rest-card { background: var(--rest-bg); }
+    .day-card.empty-card { background: rgba(255,255,255,0.02); border: 1px dashed rgba(255,255,255,0.06); cursor: default; }
+    .day-card.today-card { box-shadow: 0 0 0 2px #a78bfa, 0 6px 24px rgba(167,139,250,0.3); }
+    .day-card:not(.empty-card):hover { transform: scale(1.04); z-index: 10; box-shadow: 0 12px 36px rgba(0,0,0,0.5); }
+    .day-num { font-family: 'Bebas Neue', sans-serif; font-size: 1.6rem; line-height: 1; margin-bottom: 6px; }
+    .day-title { font-size: 0.72rem; font-weight: 600; line-height: 1.3; opacity: 0.95; }
+    .day-sub { font-size: 0.62rem; opacity: 0.7; margin-top: 3px; font-weight: 300; }
+    .popup-overlay {
+      position: fixed; inset: 0; background: rgba(0,0,0,0.65); z-index: 500;
+      display: flex; align-items: center; justify-content: center; padding: 20px;
+      opacity: 0; pointer-events: none; transition: opacity 0.2s;
+    }
+    .popup-overlay.open { opacity: 1; pointer-events: auto; }
+    .popup {
+      background: #13101f; border: 1px solid rgba(255,255,255,0.12); border-radius: 20px;
+      padding: 32px; max-width: 440px; width: 100%; max-height: 80vh; overflow-y: auto;
+      transform: scale(0.95); transition: transform 0.2s; color: white; position: relative;
+    }
+    .popup-overlay.open .popup { transform: scale(1); }
+    .popup-close {
+      position: absolute; top: 16px; right: 16px; background: rgba(255,255,255,0.08);
+      border: none; color: #9ca3af; width: 32px; height: 32px; border-radius: 50%;
+      font-size: 1rem; cursor: pointer; display: flex; align-items: center; justify-content: center;
+      transition: background 0.2s;
+    }
+    .popup-close:hover { background: rgba(255,255,255,0.16); color: white; }
+    .popup h3 { font-family: 'Bebas Neue', sans-serif; font-size: 1.5rem; letter-spacing: 2px; color: var(--purple-light); margin-bottom: 4px; }
+    .popup-date { font-size: 0.8rem; color: #6b7280; margin-bottom: 20px; }
+    .workout-list { list-style: none; }
+    .workout-list li {
+      padding: 10px 0; border-bottom: 1px solid rgba(255,255,255,0.06);
+      font-size: 0.9rem; color: #e5e7eb; display: flex; align-items: flex-start; gap: 10px; line-height: 1.4;
+    }
+    .workout-list li:last-child { border-bottom: none; }
+    .workout-list li .icn { font-size: 1rem; flex-shrink: 0; }
+    .rest-note { color: #38bdf8; font-style: italic; font-size: 1rem; text-align: center; padding: 16px 0; }
+    .legend { display: flex; justify-content: center; gap: 28px; margin-top: 24px; flex-wrap: wrap; }
+    .legend-item { display: flex; align-items: center; gap: 8px; font-size: 0.82rem; color: #9ca3af; }
+    .legend-dot { width: 12px; height: 12px; border-radius: 3px; }
+    .legend-dot.workout { background: var(--workout-bg); }
+    .legend-dot.rest { background: var(--rest-bg); }
+    .legend-dot.today { background: transparent; border: 2px solid #a78bfa; }
+    @media (max-width: 768px) {
+      .cal-grid, .day-labels { gap: 5px; }
+      .day-card { min-height: 76px; padding: 7px 4px; }
+      .day-num { font-size: 1.1rem; }
+      .day-title { font-size: 0.6rem; }
+      .day-sub { display: none; }
+      .split-grid { grid-template-columns: repeat(2,1fr); }
+    }
+  </style>
+</head>
+<body>
+<div class="container">
+  <div class="header">
+    <h1>💪 Workout Calendar</h1>
+    <p>Click any day to see your full workout • Configure your split below</p>
+  </div>
+  <div class="month-nav">
+    <button id="prevBtn">&#8592;</button>
+    <div class="month-label" id="monthLabel"></div>
+    <button id="nextBtn">&#8594;</button>
+  </div>
+  <div class="split-panel">
+    <div class="split-panel-header" id="splitToggle">
+      <h2>⚡ Configure Your Split</h2>
+      <span class="toggle-icon" id="toggleIcon">▼</span>
+    </div>
+    <div class="split-body" id="splitBody">
+      <p style="color:#9ca3af;font-size:0.82rem;margin-bottom:18px;">
+        Pick a focus for each day — exercises rotate every week with no repeated movement patterns.
+      </p>
+      <div class="split-grid" id="splitGrid"></div>
+      <div class="split-actions">
+        <button class="btn btn-primary" id="applyBtn">✅ Apply Split</button>
+        <button class="btn btn-secondary" id="resetBtn">↺ Reset to Default</button>
+      </div>
+    </div>
+  </div>
+  <div class="calendar-card">
+    <div class="day-labels">
+      <div class="day-label">Sun</div><div class="day-label">Mon</div>
+      <div class="day-label">Tue</div><div class="day-label">Wed</div>
+      <div class="day-label">Thu</div><div class="day-label">Fri</div>
+      <div class="day-label">Sat</div>
+    </div>
+    <div class="cal-grid" id="calGrid"></div>
+  </div>
+  <div class="legend">
+    <div class="legend-item"><div class="legend-dot workout"></div> Workout</div>
+    <div class="legend-item"><div class="legend-dot rest"></div> Rest</div>
+    <div class="legend-item"><div class="legend-dot today"></div> Today</div>
+  </div>
+</div>
+<div class="popup-overlay" id="popupOverlay">
+  <div class="popup" id="popup">
+    <button class="popup-close" id="popupClose">✕</button>
+    <h3 id="popupTitle"></h3>
+    <div class="popup-date" id="popupDate"></div>
+    <div id="popupBody"></div>
+  </div>
+</div>
+<script>
+const MONTHS    = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+const DAY_NAMES = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+const today = new Date();
+let viewYear  = today.getFullYear();
+let viewMonth = today.getMonth();
+
+// ─────────────────────────────────────────────────────────────────────────────
+// EXERCISE BANK
+// Each exercise has a "slot" tag — within a single workout, no two exercises
+// share the same slot. This enforces the "no redundant movement patterns" rule.
+// ─────────────────────────────────────────────────────────────────────────────
+// ── APPROVED EXERCISE BANK (exactly what was requested, nothing else) ─────────
+// slot = movement pattern. No two exercises with the same slot appear in one session.
+const BANK = {
+
+  // GLUTES
+  // Your list: Hip Thrusts (barbell or smith), Cable Kickbacks, Bulgarian Split Squats,
+  //            RDLs, Hip Abduction Machine, Adductor Machine
+  glutes: [
+    { slot:'hip_thrust',  i:'🍑', t:'Barbell Hip Thrusts – 4×10-12' },
+    { slot:'hip_thrust',  i:'🍑', t:'Smith Machine Hip Thrusts – 4×10-12' },
+    { slot:'kickback',    i:'🍑', t:'Cable Kickbacks – 3×15 ea' },
+    { slot:'split_squat', i:'🦵', t:'Bulgarian Split Squats – 3×10-12 ea' },
+    { slot:'hinge',       i:'🏋️', t:'Romanian Deadlifts (RDLs) – 4×8-10' },
+    { slot:'abduction',   i:'🍑', t:'Hip Abduction Machine – 3×15' },
+    { slot:'adduction',   i:'🍑', t:'Adductor Machine – 3×15' },
+  ],
+
+  // LEGS
+  // Your list: Back Squats, Leg Press, Leg Extensions, Lying Leg Curls, Seated Leg Curls,
+  //            Reverse Lunges, Step-Ups, Wall Sits, Calf Raises (seated or standing)
+  legs: [
+    { slot:'squat',    i:'🦵', t:'Back Squats – 4×8-10' },
+    { slot:'press',    i:'🦵', t:'Leg Press – 4×12' },
+    { slot:'quad_iso', i:'🦵', t:'Leg Extensions – 3×12' },
+    { slot:'ham_iso',  i:'🦵', t:'Lying Leg Curls – 3×12' },
+    { slot:'ham_iso',  i:'🦵', t:'Seated Leg Curls – 3×12' },
+    { slot:'lunge',    i:'🦵', t:'Reverse Lunges – 3×10 ea' },
+    { slot:'lunge',    i:'🦵', t:'Step-Ups – 3×12 ea' },
+    { slot:'iso_hold', i:'🦵', t:'Wall Sits – 3×45 sec' },
+    { slot:'calf',     i:'🦶', t:'Standing Calf Raises – 4×15' },
+    { slot:'calf',     i:'🦶', t:'Seated Calf Raises – 4×15' },
+  ],
+
+  // BACK
+  // Your list: Bent-Over Barbell Rows, T-Bar Rows, Single-Arm DB Row, Seated Cable Row,
+  //            Lat Pulldowns (wide), Lat Pulldowns (close), Pull-Ups/Assisted,
+  //            Cable Pullovers, Face Pulls, Rear Delt Flyes
+  back: [
+    { slot:'row_bar',        i:'💪', t:'Bent-Over Barbell Rows – 4×8-10' },
+    { slot:'row_bar',        i:'💪', t:'T-Bar Rows – 3×10' },
+    { slot:'row_db',         i:'💪', t:'Single-Arm DB Row – 3×12 ea' },
+    { slot:'row_cable',      i:'💪', t:'Seated Cable Row – 3×12' },
+    { slot:'pulldown_wide',  i:'💪', t:'Lat Pulldowns (Wide Grip) – 4×10-12' },
+    { slot:'pulldown_close', i:'💪', t:'Lat Pulldowns (Close Grip) – 3×12' },
+    { slot:'pull_up',        i:'💪', t:'Pull-Ups / Assisted Pull-Ups – 3×failure' },
+    { slot:'pullover',       i:'💪', t:'Cable Pullovers – 3×12' },
+    { slot:'rear_delt',      i:'💪', t:'Face Pulls – 3×15' },
+    { slot:'rear_delt',      i:'💪', t:'Rear Delt Flyes – 3×15' },
+  ],
+
+  // BICEPS
+  // Your list: EZ-Bar Curls, Incline DB Curls, Hammer Curls, Preacher Curls,
+  //            Cable Curls, Reverse Curls
+  biceps: [
+    { slot:'bar_curl',     i:'💪', t:'EZ-Bar Curls – 3×10-12' },
+    { slot:'incline_curl', i:'💪', t:'Incline DB Curls – 3×12' },
+    { slot:'neutral_curl', i:'💪', t:'Hammer Curls – 3×12' },
+    { slot:'preacher',     i:'💪', t:'Preacher Curls – 3×12' },
+    { slot:'cable_curl',   i:'💪', t:'Cable Curls – 3×12' },
+    { slot:'reverse_curl', i:'💪', t:'Reverse Curls – 3×12' },
+  ],
+
+  // TRICEPS
+  // Your list: Tricep Pushdowns (rope), Tricep Pushdowns (bar),
+  //            Overhead Tricep Extension (cable), Skull Crushers
+  triceps: [
+    { slot:'pushdown_rope', i:'💪', t:'Tricep Pushdowns (Rope) – 3×12' },
+    { slot:'pushdown_bar',  i:'💪', t:'Tricep Pushdowns (Bar) – 3×12' },
+    { slot:'overhead_ext',  i:'💪', t:'Overhead Tricep Extension (Cable) – 3×12' },
+    { slot:'compound_tri',  i:'💪', t:'Skull Crushers – 3×10' },
+  ],
+
+  // CHEST
+  // Your list: Flat DB Bench Press, Incline DB Bench Press,
+  //            Pec Deck / Machine Flyes, Push-Ups
+  chest: [
+    { slot:'flat_press',       i:'🏋️', t:'Flat DB Bench Press – 4×10' },
+    { slot:'incline_press',    i:'🏋️', t:'Incline DB Bench Press – 3×10' },
+    { slot:'fly',              i:'🏋️', t:'Pec Deck / Machine Flyes – 3×12' },
+    { slot:'bodyweight_chest', i:'🏋️', t:'Push-Ups – 3×failure' },
+  ],
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// WORKOUT TEMPLATES
+// Each template defines WHICH muscle groups appear and HOW MANY exercises
+// are picked from each, across 4 rotating week variants.
+// The picker ensures no two exercises in a session share the same slot.
+// ─────────────────────────────────────────────────────────────────────────────
+
+// ── Workout builders ─────────────────────────────────────────────────────────
+// Each returns { title, subtitle, exercises[] }
+// weekNum drives _seed so each week is unique but reproducible
+
+// pickSlot(group, slot) — returns the exercise for a specific slot, picking
+// between variants using weekNum so it alternates (e.g. barbell vs smith hip thrust,
+// lying vs seated leg curl, standing vs seated calf raise, etc.)
+function pickSlot(group, slot, variant) {
+  const matches = BANK[group].filter(e => e.slot === slot);
+  if (!matches.length) return [];
+  return [matches[variant % matches.length]];
+}
+
+function buildGlutesHeavy(weekNum) {
+  // Hip thrust (alt barbell/smith) + RDL + Bulgarian + Back Squat + ham curl (alt lying/seated) + Cable Kickbacks
+  return {
+    title: 'Glutes & Legs', subtitle: '(Heavy)',
+    exercises: [
+      ...pickSlot('glutes', 'hip_thrust',  weekNum),
+      ...pickSlot('glutes', 'hinge',       weekNum),
+      ...pickSlot('glutes', 'split_squat', weekNum),
+      ...pickSlot('legs',   'squat',       weekNum),
+      ...pickSlot('legs',   'ham_iso',     weekNum),
+      ...pickSlot('glutes', 'kickback',    weekNum),
+    ]
+  };
+}
+
+function buildGlutesLightCore(weekNum) {
+  // Abduction + Adduction + Kickback + 3 rotating core moves
+  const coreExercises = [
+    [
+      { i:'🧘', t:'Planks – 3×45 sec' },
+      { i:'🔥', t:'Hanging Leg Raises – 3×failure' },
+      { i:'🔥', t:'Toe-Touch Crunches – 3×20' },
+    ],
+    [
+      { i:'🧘', t:'Side Planks – 3×30 sec ea' },
+      { i:'🔥', t:'Bicycle Crunches – 3×20' },
+      { i:'🔥', t:'Russian Twists – 3×20' },
+    ],
+    [
+      { i:'🧘', t:'Hollow Body Hold – 3×30 sec' },
+      { i:'🔥', t:'Flutter Kicks – 3×30 sec' },
+      { i:'🔥', t:'Leg Raises – 3×15' },
+    ],
+    [
+      { i:'🧘', t:'Plank Up-Downs – 3×10' },
+      { i:'🔥', t:'Mountain Climbers – 3×30 sec' },
+      { i:'🔥', t:'Dead Bug – 3×12 ea' },
+    ],
+  ];
+  return {
+    title: 'Glutes + Core', subtitle: '(Light)',
+    exercises: [
+      ...pickSlot('glutes', 'abduction', weekNum),
+      ...pickSlot('glutes', 'adduction', weekNum),
+      ...pickSlot('glutes', 'kickback',  weekNum),
+      ...coreExercises[weekNum % 4],
+    ]
+  };
+}
+
+function buildGlutesMod(weekNum) {
+  // Hip thrust + leg press + RDL + ham curl (alt) + abduction + calf (alt standing/seated)
+  return {
+    title: 'Glutes & Legs', subtitle: '(Moderate)',
+    exercises: [
+      ...pickSlot('glutes', 'hip_thrust', weekNum),
+      ...pickSlot('legs',   'press',      weekNum),
+      ...pickSlot('glutes', 'hinge',      weekNum),
+      ...pickSlot('legs',   'ham_iso',    weekNum),
+      ...pickSlot('glutes', 'abduction',  weekNum),
+      ...pickSlot('legs',   'calf',       weekNum),
+    ]
+  };
+}
+
+function buildBackArms(weekNum) {
+  // 1 barbell row (alt bent-over/t-bar) + 1 cable/db row (alt) + 1 pulldown (alt wide/close)
+  // + pull-up or pullover (alt) + 2 biceps (different slots) + 1 tricep + cardio
+  const cardio = [
+    { i:'🏃', t:'20 min Treadmill (max incline, 3.0 speed)' },
+    { i:'🏃', t:'25 min Incline Walk' },
+    { i:'🏃', t:'20 min Cardio (choice of machine)' },
+    { i:'🏃', t:'22 min Treadmill Intervals' },
+  ];
+  // Bicep pairs that never repeat a slot — rotate through 3 distinct combos
+  const bicepPairs = [
+    [ BANK.biceps.find(e=>e.slot==='bar_curl'),     BANK.biceps.find(e=>e.slot==='neutral_curl')  ], // EZ-bar + Hammer
+    [ BANK.biceps.find(e=>e.slot==='incline_curl'), BANK.biceps.find(e=>e.slot==='cable_curl')    ], // Incline + Cable
+    [ BANK.biceps.find(e=>e.slot==='preacher'),     BANK.biceps.find(e=>e.slot==='reverse_curl')  ], // Preacher + Reverse
+    [ BANK.biceps.find(e=>e.slot==='bar_curl'),     BANK.biceps.find(e=>e.slot==='cable_curl')    ], // EZ-bar + Cable
+  ];
+  const [bic1, bic2] = bicepPairs[weekNum % bicepPairs.length];
+  // Row alternates: even weeks barbell row, odd weeks DB row; cable row stays every session
+  const rowMain = weekNum % 2 === 0
+    ? BANK.back.find(e=>e.t.includes('Bent-Over'))
+    : BANK.back.find(e=>e.t.includes('T-Bar'));
+  const rowSec = weekNum % 2 === 0
+    ? BANK.back.find(e=>e.slot==='row_db')
+    : BANK.back.find(e=>e.slot==='row_cable');
+  // Pulldown alternates wide/close; pull-up or pullover alternates
+  const pulldown = weekNum % 2 === 0
+    ? BANK.back.find(e=>e.slot==='pulldown_wide')
+    : BANK.back.find(e=>e.slot==='pulldown_close');
+  const vertical = weekNum % 2 === 0
+    ? BANK.back.find(e=>e.slot==='pull_up')
+    : BANK.back.find(e=>e.slot==='pullover');
+  // Tricep rotates through all 4
+  const tricepList = [
+    BANK.triceps.find(e=>e.slot==='pushdown_rope'),
+    BANK.triceps.find(e=>e.slot==='pushdown_bar'),
+    BANK.triceps.find(e=>e.slot==='overhead_ext'),
+    BANK.triceps.find(e=>e.slot==='compound_tri'),
+  ];
+  return {
+    title: 'Back + Arms', subtitle: '(+ Cardio)',
+    exercises: [
+      rowMain, rowSec, pulldown, vertical,
+      bic1, bic2,
+      tricepList[weekNum % 4],
+      cardio[weekNum % 4],
+    ]
+  };
+}
+
+function buildUpperPush(weekNum) {
+  // All 4 chest exercises + all 4 tricep exercises — every slot covered, rotated by week
+  // Week 1: flat+incline+fly+pushup / rope+bar+overhead+skulls
+  // Week 2: incline+flat+pushup+fly / bar+overhead+skulls+rope  (shifted)
+  const chestOrder = [
+    ['flat_press','incline_press','fly','bodyweight_chest'],
+    ['incline_press','flat_press','bodyweight_chest','fly'],
+    ['flat_press','fly','incline_press','bodyweight_chest'],
+    ['incline_press','fly','flat_press','bodyweight_chest'],
+  ];
+  const triOrder = [
+    ['pushdown_rope','overhead_ext','compound_tri'],
+    ['pushdown_bar','overhead_ext','compound_tri'],
+    ['pushdown_rope','pushdown_bar','overhead_ext'],
+    ['compound_tri','pushdown_rope','overhead_ext'],
+  ];
+  const cSlots = chestOrder[weekNum % 4];
+  const tSlots = triOrder[weekNum % 4];
+  return {
+    title: 'Upper Push', subtitle: '(Chest & Triceps)',
+    exercises: [
+      ...cSlots.map(s => BANK.chest.find(e=>e.slot===s)),
+      ...tSlots.map(s => BANK.triceps.find(e=>e.slot===s)),
+    ]
+  };
+}
+
+function buildUpperFull(weekNum) {
+  // Back: 1 row (alt bar/db) + 1 pulldown (alt wide/close) + 1 rear delt (alt face pull/rear delt fly)
+  // Chest: flat + incline (alt weeks) + fly
+  // Biceps: 2 different slots
+  const rowBack = weekNum % 2 === 0
+    ? BANK.back.find(e=>e.t.includes('Bent-Over'))
+    : BANK.back.find(e=>e.slot==='row_db');
+  const pulldown = weekNum % 2 === 0
+    ? BANK.back.find(e=>e.slot==='pulldown_wide')
+    : BANK.back.find(e=>e.slot==='pulldown_close');
+  const rearDelt = weekNum % 2 === 0
+    ? BANK.back.find(e=>e.t.includes('Face Pulls'))
+    : BANK.back.find(e=>e.t.includes('Rear Delt'));
+  const chestMain = weekNum % 2 === 0
+    ? BANK.chest.find(e=>e.slot==='flat_press')
+    : BANK.chest.find(e=>e.slot==='incline_press');
+  const chestFly = BANK.chest.find(e=>e.slot==='fly');
+  const bicepPairs = [
+    [ BANK.biceps.find(e=>e.slot==='bar_curl'),     BANK.biceps.find(e=>e.slot==='neutral_curl')  ],
+    [ BANK.biceps.find(e=>e.slot==='incline_curl'), BANK.biceps.find(e=>e.slot==='preacher')      ],
+    [ BANK.biceps.find(e=>e.slot==='cable_curl'),   BANK.biceps.find(e=>e.slot==='reverse_curl')  ],
+    [ BANK.biceps.find(e=>e.slot==='bar_curl'),     BANK.biceps.find(e=>e.slot==='incline_curl')  ],
+  ];
+  const [bic1, bic2] = bicepPairs[weekNum % 4];
+  return {
+    title: 'Upper Body', subtitle: '(Pull + Chest)',
+    exercises: [ rowBack, pulldown, rearDelt, chestMain, chestFly, bic1, bic2 ]
+  };
+}
+
+// ── Split config ──────────────────────────────────────────────────────────────
+const SPLIT_OPTIONS = [
+  { value: 'rest',           label: 'Rest Day' },
+  { value: 'glutes_heavy',   label: 'Glutes & Legs (Heavy)' },
+  { value: 'glutes_mod',     label: 'Glutes & Legs (Moderate)' },
+  { value: 'glutes_core',    label: 'Glutes + Core (Light)' },
+  { value: 'back_arms',      label: 'Back + Arms (+ Cardio)' },
+  { value: 'upper_push',     label: 'Upper Push (Chest & Triceps)' },
+  { value: 'upper_full',     label: 'Upper Body (Pull + Chest)' },
+];
+
+// Default: Sun=rest, Mon=glutes_heavy, Tue=back_arms, Wed=glutes_core, Thu=rest, Fri=glutes_mod, Sat=upper_full
+let split = ['rest','glutes_heavy','back_arms','glutes_core','rest','glutes_mod','upper_full'];
+
+function buildWorkout(splitKey, weekNum) {
+  switch(splitKey) {
+    case 'glutes_heavy': return buildGlutesHeavy(weekNum);
+    case 'glutes_mod':   return buildGlutesMod(weekNum);
+    case 'glutes_core':  return buildGlutesLightCore(weekNum);
+    case 'back_arms':    return buildBackArms(weekNum);
+    case 'upper_push':   return buildUpperPush(weekNum);
+    case 'upper_full':   return buildUpperFull(weekNum);
+    default: return null;
+  }
+}
+
+// ── Month generation ──────────────────────────────────────────────────────────
+function dateKey(y, m, d) {
+  return `${y}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+}
+
+function generateMonth(year, month) {
+  const daysInMonth = new Date(year, month+1, 0).getDate();
+  const firstDow    = new Date(year, month, 1).getDay();
+  const data = {};
+  let weekNum = 0, prevDow = -1;
+  for (let d = 1; d <= daysInMonth; d++) {
+    const dow = (firstDow + d - 1) % 7;
+    if (dow < prevDow) weekNum++;
+    prevDow = dow;
+    const key = dateKey(year, month, d);
+    const sk  = split[dow];
+    if (sk === 'rest') {
+      data[key] = { title: 'Rest Day', subtitle: '', rest: true };
+    } else {
+      data[key] = { ...buildWorkout(sk, weekNum), rest: false };
+    }
+  }
+  return data;
+}
+
+const cache = {};
+function getMonthData(y, m) {
+  const k = `${y}-${m}`;
+  if (!cache[k]) cache[k] = generateMonth(y, m);
+  return cache[k];
+}
+function invalidateCache() { Object.keys(cache).forEach(k => delete cache[k]); }
+
+// ── Split UI ──────────────────────────────────────────────────────────────────
+function buildSplitGrid() {
+  const grid = document.getElementById('splitGrid');
+  grid.innerHTML = '';
+  DAY_NAMES.forEach((day, i) => {
+    const row = document.createElement('div');
+    row.className = 'split-day-row';
+    row.innerHTML = `<label>${day}</label>
+      <select id="splitSel_${i}">
+        ${SPLIT_OPTIONS.map(o=>`<option value="${o.value}"${split[i]===o.value?' selected':''}>${o.label}</option>`).join('')}
+      </select>`;
+    grid.appendChild(row);
+  });
+}
+
+document.getElementById('splitToggle').addEventListener('click', () => {
+  document.getElementById('splitBody').classList.toggle('open');
+  document.getElementById('toggleIcon').classList.toggle('open');
+});
+document.getElementById('applyBtn').addEventListener('click', () => {
+  DAY_NAMES.forEach((_,i) => { split[i] = document.getElementById(`splitSel_${i}`).value; });
+  invalidateCache(); renderCalendar();
+});
+document.getElementById('resetBtn').addEventListener('click', () => {
+  split = ['rest','glutes_heavy','back_arms','glutes_core','rest','glutes_mod','upper_full'];
+  buildSplitGrid(); invalidateCache(); renderCalendar();
+});
+
+// ── Month nav ─────────────────────────────────────────────────────────────────
+function updateMonthLabel() {
+  document.getElementById('monthLabel').textContent = `${MONTHS[viewMonth]} ${viewYear}`;
+}
+document.getElementById('prevBtn').addEventListener('click', () => {
+  if (--viewMonth < 0) { viewMonth = 11; viewYear--; }
+  updateMonthLabel(); renderCalendar();
+});
+document.getElementById('nextBtn').addEventListener('click', () => {
+  if (++viewMonth > 11) { viewMonth = 0; viewYear++; }
+  updateMonthLabel(); renderCalendar();
+});
+
+// ── Calendar render ───────────────────────────────────────────────────────────
+function renderCalendar() {
+  const grid = document.getElementById('calGrid');
+  grid.innerHTML = '';
+  const data        = getMonthData(viewYear, viewMonth);
+  const firstDow    = new Date(viewYear, viewMonth, 1).getDay();
+  const daysInMonth = new Date(viewYear, viewMonth+1, 0).getDate();
+  for (let i = 0; i < firstDow; i++) {
+    const cell = document.createElement('div');
+    cell.className = 'cal-cell';
+    cell.innerHTML = '<div class="day-card empty-card"></div>';
+    grid.appendChild(cell);
+  }
+  for (let d = 1; d <= daysInMonth; d++) {
+    const key = dateKey(viewYear, viewMonth, d);
+    const info = data[key];
+    const isToday = d===today.getDate() && viewMonth===today.getMonth() && viewYear===today.getFullYear();
+    const cell = document.createElement('div');
+    cell.className = 'cal-cell';
+    const card = document.createElement('div');
+    card.className = `day-card ${info.rest?'rest-card':'workout-card'}${isToday?' today-card':''}`;
+    card.innerHTML = `<div class="day-num">${d}</div>
+      <div class="day-title">${info.title}</div>
+      ${info.subtitle?`<div class="day-sub">${info.subtitle}</div>`:''}`;
+    card.addEventListener('click', ()=>openPopup(d,(firstDow+d-1)%7,key,info));
+    cell.appendChild(card);
+    grid.appendChild(cell);
+  }
+}
+
+// ── Popup ─────────────────────────────────────────────────────────────────────
+function openPopup(d, dow, key, info) {
+  document.getElementById('popupTitle').textContent = info.title + (info.subtitle?' '+info.subtitle:'');
+  document.getElementById('popupDate').textContent  = `${DAY_NAMES[dow]}, ${MONTHS[viewMonth]} ${d}, ${viewYear}`;
+  const body = document.getElementById('popupBody');
+  if (info.rest) {
+    body.innerHTML = '<p class="rest-note">🌟 Recovery day! Hydrate, stretch, and let those muscles grow.</p>';
+  } else {
+    body.innerHTML = `<ul class="workout-list">${(info.exercises||[]).map(e=>
+      `<li><span class="icn">${e.i}</span><span>${e.t}</span></li>`).join('')}</ul>`;
+  }
+  document.getElementById('popupOverlay').classList.add('open');
+}
+document.getElementById('popupOverlay').addEventListener('click', e=>{
+  if(e.target===document.getElementById('popupOverlay')) closePopup();
+});
+document.getElementById('popupClose').addEventListener('click', closePopup);
+function closePopup(){ document.getElementById('popupOverlay').classList.remove('open'); }
+
+// ── Init ──────────────────────────────────────────────────────────────────────
+buildSplitGrid();
+updateMonthLabel();
+renderCalendar();
+</script>
+</body>
+</html>
