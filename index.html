@@ -139,6 +139,59 @@
     .legend-dot.workout { background: var(--workout-bg); }
     .legend-dot.rest { background: var(--rest-bg); }
     .legend-dot.today { background: transparent; border: 2px solid #a78bfa; }
+    /* ── Rest timer in popup ── */
+    .rest-timer-bar {
+      background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 14px; padding: 16px 18px; margin-bottom: 18px;
+      display: flex; align-items: center; gap: 14px;
+    }
+    .timer-ring { position: relative; width: 52px; height: 52px; flex-shrink: 0; }
+    .timer-ring svg { transform: rotate(-90deg); }
+    .timer-ring circle { fill: none; stroke-width: 4; }
+    .timer-ring .bg  { stroke: rgba(167,139,250,0.15); }
+    .timer-ring .fg  { stroke: #a78bfa; stroke-linecap: round; transition: stroke-dashoffset 0.25s linear; }
+    .timer-ring .fg.done { stroke: #34d399; }
+    .timer-ring .ring-label {
+      position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+      font-family: 'Bebas Neue', sans-serif; font-size: 0.95rem; color: #a78bfa; letter-spacing: 1px;
+    }
+    .timer-ring .ring-label.done { color: #34d399; }
+    .timer-info { flex: 1; }
+    .timer-info .timer-title { font-size: 0.75rem; font-weight: 600; color: #9ca3af; text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 8px; }
+    .timer-btns { display: flex; gap: 8px; flex-wrap: wrap; }
+    .timer-btn {
+      padding: 7px 16px; border-radius: 8px; font-family: 'DM Sans', sans-serif;
+      font-size: 0.85rem; font-weight: 600; cursor: pointer; border: none; transition: all 0.18s;
+    }
+    .timer-btn.start { background: linear-gradient(135deg, #7c3aed, #4f46e5); color: white; }
+    .timer-btn.start:hover { filter: brightness(1.15); }
+    .timer-btn.reset { background: rgba(255,255,255,0.07); color: #9ca3af; border: 1px solid rgba(255,255,255,0.1); }
+    .timer-btn.reset:hover { background: rgba(255,255,255,0.12); color: white; }
+    .rest-badge {
+      display: inline-flex; align-items: center; gap: 5px;
+      background: rgba(167,139,250,0.12); border: 1px solid rgba(167,139,250,0.25);
+      border-radius: 20px; padding: 3px 10px; font-size: 0.75rem; color: #a78bfa;
+      font-weight: 600; margin-bottom: 14px;
+    }
+    .cardio-block {
+      background: linear-gradient(135deg, rgba(56,189,248,0.1), rgba(14,165,233,0.08));
+      border: 1px solid rgba(56,189,248,0.25); border-radius: 12px;
+      padding: 12px 14px; margin-top: 14px;
+      display: flex; align-items: center; gap: 10px; font-size: 0.88rem; color: #7dd3fc;
+    }
+    .cardio-block .cardio-icon { font-size: 1.2rem; flex-shrink: 0; }
+    .rest-select-row {
+      display: flex; align-items: center; gap: 12px; margin-top: 16px;
+      padding-top: 16px; border-top: 1px solid rgba(255,255,255,0.07);
+    }
+    .rest-select-row label { font-size: 0.78rem; font-weight: 600; color: #9ca3af; text-transform: uppercase; letter-spacing: 0.06em; white-space: nowrap; }
+    .rest-select-row select {
+      background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.12);
+      border-radius: 8px; color: white; padding: 7px 12px;
+      font-family: 'DM Sans', sans-serif; font-size: 0.9rem; outline: none;
+    }
+    .rest-select-row select:focus { border-color: var(--purple-light); }
+    .rest-select-row select option { background: #1e1b4b; }
     @media (max-width: 768px) {
       .cal-grid, .day-labels { gap: 5px; }
       .day-card { min-height: 76px; padding: 7px 4px; }
@@ -170,7 +223,16 @@
         Pick a focus for each day — exercises rotate every week with no repeated movement patterns.
       </p>
       <div class="split-grid" id="splitGrid"></div>
-      <div class="split-actions">
+      <div class="rest-select-row">
+        <label>⏱ Rest Between Sets</label>
+        <select id="restTimeSel">
+          <option value="45">45 seconds</option>
+          <option value="60" selected>60 seconds</option>
+          <option value="90">90 seconds</option>
+          <option value="120">2 minutes</option>
+        </select>
+      </div>
+      <div class="split-actions" style="margin-top:16px;">
         <button class="btn btn-primary" id="applyBtn">✅ Apply Split</button>
         <button class="btn btn-secondary" id="resetBtn">↺ Reset to Default</button>
       </div>
@@ -314,8 +376,11 @@ function pickSlot(group, slot, variant) {
   return [matches[variant % matches.length]];
 }
 
+const CARDIO_FINISHER = { i:'🏃', t:'15-20 min Max Incline Walk or Stairmaster' };
+
 function buildGlutesHeavy(weekNum) {
   // Hip thrust (alt barbell/smith) + RDL + Bulgarian + Back Squat + ham curl (alt lying/seated) + Cable Kickbacks
+  // NO cardio finisher — heavy lifting is enough
   return {
     title: 'Glutes & Legs', subtitle: '(Heavy)',
     exercises: [
@@ -360,6 +425,7 @@ function buildGlutesLightCore(weekNum) {
       ...pickSlot('glutes', 'adduction', weekNum),
       ...pickSlot('glutes', 'kickback',  weekNum),
       ...coreExercises[weekNum % 4],
+      CARDIO_FINISHER,
     ]
   };
 }
@@ -380,14 +446,6 @@ function buildGlutesMod(weekNum) {
 }
 
 function buildBackArms(weekNum) {
-  // 1 barbell row (alt bent-over/t-bar) + 1 cable/db row (alt) + 1 pulldown (alt wide/close)
-  // + pull-up or pullover (alt) + 2 biceps (different slots) + 1 tricep + cardio
-  const cardio = [
-    { i:'🏃', t:'20 min Treadmill (max incline, 3.0 speed)' },
-    { i:'🏃', t:'25 min Incline Walk' },
-    { i:'🏃', t:'20 min Cardio (choice of machine)' },
-    { i:'🏃', t:'22 min Treadmill Intervals' },
-  ];
   // Bicep pairs that never repeat a slot — rotate through 3 distinct combos
   const bicepPairs = [
     [ BANK.biceps.find(e=>e.slot==='bar_curl'),     BANK.biceps.find(e=>e.slot==='neutral_curl')  ], // EZ-bar + Hammer
@@ -423,7 +481,7 @@ function buildBackArms(weekNum) {
       rowMain, rowSec, pulldown, vertical,
       bic1, bic2,
       tricepList[weekNum % 4],
-      cardio[weekNum % 4],
+      CARDIO_FINISHER,
     ]
   };
 }
@@ -481,7 +539,7 @@ function buildUpperFull(weekNum) {
   const [bic1, bic2] = bicepPairs[weekNum % 4];
   return {
     title: 'Upper Body', subtitle: '(Pull + Chest)',
-    exercises: [ rowBack, pulldown, rearDelt, chestMain, chestFly, bic1, bic2 ]
+    exercises: [ rowBack, pulldown, rearDelt, chestMain, chestFly, bic1, bic2, CARDIO_FINISHER ]
   };
 }
 
@@ -498,6 +556,7 @@ const SPLIT_OPTIONS = [
 
 // Default: Sun=rest, Mon=glutes_heavy, Tue=back_arms, Wed=glutes_core, Thu=rest, Fri=glutes_mod, Sat=upper_full
 let split = ['rest','glutes_heavy','back_arms','glutes_core','rest','glutes_mod','upper_full'];
+let restTime = 60; // seconds
 
 function buildWorkout(splitKey, weekNum) {
   switch(splitKey) {
@@ -565,10 +624,13 @@ document.getElementById('splitToggle').addEventListener('click', () => {
 });
 document.getElementById('applyBtn').addEventListener('click', () => {
   DAY_NAMES.forEach((_,i) => { split[i] = document.getElementById(`splitSel_${i}`).value; });
+  restTime = parseInt(document.getElementById('restTimeSel').value);
   invalidateCache(); renderCalendar();
 });
 document.getElementById('resetBtn').addEventListener('click', () => {
   split = ['rest','glutes_heavy','back_arms','glutes_core','rest','glutes_mod','upper_full'];
+  restTime = 60;
+  document.getElementById('restTimeSel').value = '60';
   buildSplitGrid(); invalidateCache(); renderCalendar();
 });
 
@@ -615,24 +677,143 @@ function renderCalendar() {
   }
 }
 
-// ── Popup ─────────────────────────────────────────────────────────────────────
+// ── Popup + Rest Timer ────────────────────────────────────────────────────────
+let timerInterval = null;
+let timerRemaining = 0;
+let timerTotal = 0;
+const CIRC = 2 * Math.PI * 22; // radius 22
+
 function openPopup(d, dow, key, info) {
+  clearTimerInterval();
   document.getElementById('popupTitle').textContent = info.title + (info.subtitle?' '+info.subtitle:'');
   document.getElementById('popupDate').textContent  = `${DAY_NAMES[dow]}, ${MONTHS[viewMonth]} ${d}, ${viewYear}`;
   const body = document.getElementById('popupBody');
+
   if (info.rest) {
     body.innerHTML = '<p class="rest-note">🌟 Recovery day! Hydrate, stretch, and let those muscles grow.</p>';
   } else {
-    body.innerHTML = `<ul class="workout-list">${(info.exercises||[]).map(e=>
-      `<li><span class="icn">${e.i}</span><span>${e.t}</span></li>`).join('')}</ul>`;
+    const exercises = info.exercises || [];
+    // separate cardio finisher (last item if it mentions incline/stairmaster)
+    const isCardio = e => e.i === '🏃';
+    const lifts   = exercises.filter(e => !isCardio(e));
+    const cardios = exercises.filter(e =>  isCardio(e));
+
+    const restLabel = restTime >= 60
+      ? `${restTime/60} min`
+      : `${restTime} sec`;
+
+    body.innerHTML = `
+      <!-- Rest timer -->
+      <div class="rest-timer-bar" id="timerBar">
+        <div class="timer-ring">
+          <svg width="52" height="52" viewBox="0 0 52 52">
+            <circle class="bg" cx="26" cy="26" r="22"/>
+            <circle class="fg" id="timerArc" cx="26" cy="26" r="22"
+              stroke-dasharray="${CIRC}" stroke-dashoffset="0"/>
+          </svg>
+          <div class="ring-label" id="timerLabel">${restTime}s</div>
+        </div>
+        <div class="timer-info">
+          <div class="timer-title">⏱ Rest Timer — ${restLabel} between sets</div>
+          <div class="timer-btns">
+            <button class="timer-btn start" id="timerStartBtn">▶ Start Rest</button>
+            <button class="timer-btn reset" id="timerResetBtn">↺ Reset</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Exercise list -->
+      <div class="rest-badge">🏋️ ${lifts.length} exercises</div>
+      <ul class="workout-list">
+        ${lifts.map(e=>`<li><span class="icn">${e.i}</span><span>${e.t}</span></li>`).join('')}
+      </ul>
+
+      <!-- Cardio finisher -->
+      ${cardios.length ? `
+        <div class="cardio-block">
+          <span class="cardio-icon">🏃</span>
+          <span><strong>Cardio Finisher:</strong> ${cardios[0].t}</span>
+        </div>` : ''}
+    `;
+
+    // Wire up timer buttons
+    document.getElementById('timerStartBtn').addEventListener('click', startTimer);
+    document.getElementById('timerResetBtn').addEventListener('click', resetTimer);
+    timerRemaining = restTime;
+    timerTotal     = restTime;
+    updateTimerUI(false);
   }
+
   document.getElementById('popupOverlay').classList.add('open');
 }
+
+function startTimer() {
+  const btn = document.getElementById('timerStartBtn');
+  if (!btn) return;
+  if (timerInterval) {
+    // Pause
+    clearTimerInterval();
+    btn.textContent = '▶ Resume';
+    return;
+  }
+  if (timerRemaining <= 0) { resetTimer(); return; }
+  btn.textContent = '⏸ Pause';
+  timerInterval = setInterval(() => {
+    timerRemaining--;
+    if (timerRemaining <= 0) {
+      timerRemaining = 0;
+      clearTimerInterval();
+      updateTimerUI(true);
+      // vibrate if supported
+      if (navigator.vibrate) navigator.vibrate([200,100,200]);
+    } else {
+      updateTimerUI(false);
+    }
+  }, 1000);
+}
+
+function resetTimer() {
+  clearTimerInterval();
+  timerRemaining = timerTotal;
+  updateTimerUI(false);
+  const btn = document.getElementById('timerStartBtn');
+  if (btn) btn.textContent = '▶ Start Rest';
+}
+
+function clearTimerInterval() {
+  if (timerInterval) { clearInterval(timerInterval); timerInterval = null; }
+}
+
+function updateTimerUI(done) {
+  const label = document.getElementById('timerLabel');
+  const arc   = document.getElementById('timerArc');
+  if (!label || !arc) return;
+  const pct    = timerTotal > 0 ? timerRemaining / timerTotal : 1;
+  const offset = CIRC * (1 - pct);
+  arc.style.strokeDashoffset = offset;
+  if (done) {
+    label.textContent = '✓';
+    label.classList.add('done');
+    arc.classList.add('done');
+    const btn = document.getElementById('timerStartBtn');
+    if (btn) btn.textContent = '▶ Start Rest';
+  } else {
+    const m = Math.floor(timerRemaining / 60);
+    const s = timerRemaining % 60;
+    label.textContent = m > 0 ? `${m}:${String(s).padStart(2,'0')}` : `${timerRemaining}s`;
+    label.classList.remove('done');
+    arc.classList.remove('done');
+  }
+}
+
 document.getElementById('popupOverlay').addEventListener('click', e=>{
   if(e.target===document.getElementById('popupOverlay')) closePopup();
 });
 document.getElementById('popupClose').addEventListener('click', closePopup);
-function closePopup(){ document.getElementById('popupOverlay').classList.remove('open'); }
+function closePopup(){
+  clearTimerInterval();
+  document.getElementById('popupOverlay').classList.remove('open');
+}
 
 // ── Init ──────────────────────────────────────────────────────────────────────
 buildSplitGrid();
