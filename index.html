@@ -180,10 +180,78 @@
       display: flex; align-items: center; gap: 10px; font-size: 0.88rem; color: #7dd3fc;
     }
     .cardio-block .cardio-icon { font-size: 1.2rem; flex-shrink: 0; }
-    .rest-select-row {
-      display: flex; align-items: center; gap: 12px; margin-top: 16px;
-      padding-top: 16px; border-top: 1px solid rgba(255,255,255,0.07);
+    /* ── Progress bar ── */
+    .progress-wrap { margin-bottom: 18px; }
+    .progress-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+    .progress-label { font-size: 0.75rem; font-weight: 600; color: #9ca3af; text-transform: uppercase; letter-spacing: 0.06em; }
+    .progress-count { font-size: 0.75rem; font-weight: 700; color: #a78bfa; }
+    .progress-bar-bg { background: rgba(255,255,255,0.07); border-radius: 99px; height: 8px; overflow: hidden; }
+    .progress-bar-fill {
+      height: 100%; border-radius: 99px;
+      background: linear-gradient(90deg, #7c3aed, #a78bfa);
+      transition: width 0.35s cubic-bezier(.4,0,.2,1);
     }
+    .progress-bar-fill.complete { background: linear-gradient(90deg, #059669, #34d399); }
+
+    /* ── Checkbox exercise rows ── */
+    .exercise-row {
+      padding: 10px 0; border-bottom: 1px solid rgba(255,255,255,0.06);
+      display: flex; align-items: center; gap: 12px; cursor: pointer;
+      transition: opacity 0.2s;
+    }
+    .exercise-row:last-child { border-bottom: none; }
+    .exercise-row.checked { opacity: 0.45; }
+    .exercise-row .icn { font-size: 1rem; flex-shrink: 0; }
+    .exercise-row .ex-text { flex: 1; font-size: 0.9rem; color: #e5e7eb; line-height: 1.4; }
+    .exercise-row.checked .ex-text { text-decoration: line-through; color: #6b7280; }
+    .ex-checkbox {
+      width: 22px; height: 22px; border-radius: 6px; flex-shrink: 0;
+      border: 2px solid rgba(167,139,250,0.4);
+      background: transparent;
+      display: flex; align-items: center; justify-content: center;
+      transition: all 0.2s; font-size: 0.8rem;
+    }
+    .exercise-row.checked .ex-checkbox {
+      background: linear-gradient(135deg, #7c3aed, #4f46e5);
+      border-color: #7c3aed;
+    }
+
+    /* ── Notes section ── */
+    .notes-toggle {
+      display: flex; align-items: center; gap: 8px; margin-top: 16px;
+      cursor: pointer; user-select: none; padding: 10px 0;
+      border-top: 1px solid rgba(255,255,255,0.07);
+      font-size: 0.82rem; font-weight: 600; color: #9ca3af;
+      text-transform: uppercase; letter-spacing: 0.06em;
+      transition: color 0.2s;
+    }
+    .notes-toggle:hover { color: #a78bfa; }
+    .notes-toggle .notes-chevron { font-size: 0.7rem; transition: transform 0.25s; }
+    .notes-toggle .notes-chevron.open { transform: rotate(90deg); }
+    .notes-toggle .notes-dot {
+      width: 7px; height: 7px; border-radius: 50%;
+      background: #a78bfa; display: none; margin-left: 2px;
+    }
+    .notes-toggle .notes-dot.visible { display: block; }
+    .notes-body { display: none; padding-top: 10px; }
+    .notes-body.open { display: block; }
+    .notes-textarea {
+      width: 100%; min-height: 90px; resize: vertical;
+      background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 10px; color: #e5e7eb; font-family: 'DM Sans', sans-serif;
+      font-size: 0.88rem; line-height: 1.5; padding: 12px 14px; outline: none;
+      transition: border-color 0.2s;
+    }
+    .notes-textarea:focus { border-color: var(--purple-light); }
+    .notes-textarea::placeholder { color: #4b5563; }
+    .notes-saved { font-size: 0.72rem; color: #34d399; margin-top: 6px; opacity: 0; transition: opacity 0.4s; }
+    .notes-saved.show { opacity: 1; }
+
+    /* ── Calendar card indicators ── */
+    .card-indicators { display: flex; gap: 4px; margin-top: 5px; justify-content: center; }
+    .card-dot { width: 5px; height: 5px; border-radius: 50%; }
+    .card-dot.done-dot { background: #34d399; }
+    .card-dot.note-dot { background: #fbbf24; }
     .rest-select-row label { font-size: 0.78rem; font-weight: 600; color: #9ca3af; text-transform: uppercase; letter-spacing: 0.06em; white-space: nowrap; }
     .rest-select-row select {
       background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.12);
@@ -668,41 +736,79 @@ function renderCalendar() {
     cell.className = 'cal-cell';
     const card = document.createElement('div');
     card.className = `day-card ${info.rest?'rest-card':'workout-card'}${isToday?' today-card':''}`;
+
+    // check localStorage for completion + notes indicators
+    const saved = loadDayData(key);
+    const allDone = !info.rest && saved.checks && info.exercises &&
+      info.exercises.filter(e=>e.i!=='🏃').every((_,i)=>saved.checks[i]);
+    const hasNote = saved.note && saved.note.trim().length > 0;
+
+    const dots = (allDone || hasNote) ? `
+      <div class="card-indicators">
+        ${allDone ? '<div class="card-dot done-dot"></div>' : ''}
+        ${hasNote ? '<div class="card-dot note-dot"></div>' : ''}
+      </div>` : '';
+
     card.innerHTML = `<div class="day-num">${d}</div>
       <div class="day-title">${info.title}</div>
-      ${info.subtitle?`<div class="day-sub">${info.subtitle}</div>`:''}`;
+      ${info.subtitle?`<div class="day-sub">${info.subtitle}</div>`:''}
+      ${dots}`;
     card.addEventListener('click', ()=>openPopup(d,(firstDow+d-1)%7,key,info));
     cell.appendChild(card);
     grid.appendChild(cell);
   }
 }
 
-// ── Popup + Rest Timer ────────────────────────────────────────────────────────
+// ── localStorage helpers ──────────────────────────────────────────────────────
+function loadDayData(key) {
+  try { return JSON.parse(localStorage.getItem('wc_' + key) || '{}'); } catch { return {}; }
+}
+function saveDayData(key, data) {
+  try { localStorage.setItem('wc_' + key, JSON.stringify(data)); } catch {}
+}
+
+// ── Popup + Rest Timer + Checkboxes + Notes ───────────────────────────────────
 let timerInterval = null;
 let timerRemaining = 0;
 let timerTotal = 0;
-const CIRC = 2 * Math.PI * 22; // radius 22
+const CIRC = 2 * Math.PI * 22;
+let currentPopupKey = null;
 
 function openPopup(d, dow, key, info) {
   clearTimerInterval();
+  currentPopupKey = key;
   document.getElementById('popupTitle').textContent = info.title + (info.subtitle?' '+info.subtitle:'');
   document.getElementById('popupDate').textContent  = `${DAY_NAMES[dow]}, ${MONTHS[viewMonth]} ${d}, ${viewYear}`;
   const body = document.getElementById('popupBody');
+  const saved = loadDayData(key);
 
   if (info.rest) {
     body.innerHTML = '<p class="rest-note">🌟 Recovery day! Hydrate, stretch, and let those muscles grow.</p>';
   } else {
     const exercises = info.exercises || [];
-    // separate cardio finisher (last item if it mentions incline/stairmaster)
-    const isCardio = e => e.i === '🏃';
-    const lifts   = exercises.filter(e => !isCardio(e));
-    const cardios = exercises.filter(e =>  isCardio(e));
-
-    const restLabel = restTime >= 60
-      ? `${restTime/60} min`
-      : `${restTime} sec`;
+    const isCardio  = e => e.i === '🏃';
+    const lifts     = exercises.filter(e => !isCardio(e));
+    const cardios   = exercises.filter(e =>  isCardio(e));
+    const checks    = saved.checks || {};
+    const doneCount = lifts.filter((_,i) => checks[i]).length;
+    const pct       = lifts.length ? Math.round(doneCount / lifts.length * 100) : 0;
+    const complete  = doneCount === lifts.length && lifts.length > 0;
+    const restLabel = restTime >= 60 ? `${restTime/60} min` : `${restTime} sec`;
+    const noteVal   = saved.note || '';
+    const hasNote   = noteVal.trim().length > 0;
 
     body.innerHTML = `
+      <!-- Progress bar -->
+      <div class="progress-wrap">
+        <div class="progress-header">
+          <span class="progress-label">Progress</span>
+          <span class="progress-count" id="progressCount">${doneCount} / ${lifts.length}</span>
+        </div>
+        <div class="progress-bar-bg">
+          <div class="progress-bar-fill${complete?' complete':''}" id="progressFill" style="width:${pct}%"></div>
+        </div>
+      </div>
+
       <!-- Rest timer -->
       <div class="rest-timer-bar" id="timerBar">
         <div class="timer-ring">
@@ -722,10 +828,15 @@ function openPopup(d, dow, key, info) {
         </div>
       </div>
 
-      <!-- Exercise list -->
+      <!-- Exercise list with checkboxes -->
       <div class="rest-badge">🏋️ ${lifts.length} exercises</div>
-      <ul class="workout-list">
-        ${lifts.map(e=>`<li><span class="icn">${e.i}</span><span>${e.t}</span></li>`).join('')}
+      <ul class="workout-list" id="exerciseList">
+        ${lifts.map((e,i) => `
+          <li class="exercise-row${checks[i]?' checked':''}" data-idx="${i}">
+            <div class="ex-checkbox">${checks[i]?'✓':''}</div>
+            <span class="icn">${e.i}</span>
+            <span class="ex-text">${e.t}</span>
+          </li>`).join('')}
       </ul>
 
       <!-- Cardio finisher -->
@@ -734,14 +845,72 @@ function openPopup(d, dow, key, info) {
           <span class="cardio-icon">🏃</span>
           <span><strong>Cardio Finisher:</strong> ${cardios[0].t}</span>
         </div>` : ''}
+
+      <!-- Notes toggle -->
+      <div class="notes-toggle" id="notesToggle">
+        <span class="notes-chevron" id="notesChevron">▶</span>
+        <span>Notes</span>
+        <span class="notes-dot${hasNote?' visible':''}" id="notesDot"></span>
+      </div>
+      <div class="notes-body" id="notesBody">
+        <textarea class="notes-textarea" id="notesArea"
+          placeholder="Log your weights, how it felt, any PRs… 💪">${noteVal}</textarea>
+        <div class="notes-saved" id="notesSaved">Saved ✓</div>
+      </div>
     `;
 
-    // Wire up timer buttons
+    // Timer
     document.getElementById('timerStartBtn').addEventListener('click', startTimer);
     document.getElementById('timerResetBtn').addEventListener('click', resetTimer);
-    timerRemaining = restTime;
-    timerTotal     = restTime;
+    timerRemaining = restTime; timerTotal = restTime;
     updateTimerUI(false);
+
+    // Checkboxes
+    document.getElementById('exerciseList').addEventListener('click', e => {
+      const row = e.target.closest('.exercise-row');
+      if (!row) return;
+      const idx = parseInt(row.dataset.idx);
+      const d2  = loadDayData(currentPopupKey);
+      const ch  = d2.checks || {};
+      ch[idx]   = !ch[idx];
+      d2.checks = ch;
+      saveDayData(currentPopupKey, d2);
+      // update row
+      row.classList.toggle('checked', !!ch[idx]);
+      row.querySelector('.ex-checkbox').textContent = ch[idx] ? '✓' : '';
+      // update progress
+      const allLifts = document.querySelectorAll('.exercise-row').length;
+      const done2    = Object.values(ch).filter(Boolean).length;
+      const p2       = allLifts ? Math.round(done2/allLifts*100) : 0;
+      const comp2    = done2 === allLifts && allLifts > 0;
+      document.getElementById('progressCount').textContent = `${done2} / ${allLifts}`;
+      const fill = document.getElementById('progressFill');
+      fill.style.width = p2 + '%';
+      fill.classList.toggle('complete', comp2);
+      renderCalendar(); // refresh dots on calendar
+    });
+
+    // Notes toggle
+    document.getElementById('notesToggle').addEventListener('click', () => {
+      document.getElementById('notesBody').classList.toggle('open');
+      document.getElementById('notesChevron').classList.toggle('open');
+    });
+
+    // Notes autosave
+    let saveTimeout;
+    document.getElementById('notesArea').addEventListener('input', e => {
+      clearTimeout(saveTimeout);
+      saveTimeout = setTimeout(() => {
+        const d2 = loadDayData(currentPopupKey);
+        d2.note  = e.target.value;
+        saveDayData(currentPopupKey, d2);
+        const dot   = document.getElementById('notesDot');
+        const saved = document.getElementById('notesSaved');
+        if (dot) dot.classList.toggle('visible', e.target.value.trim().length > 0);
+        if (saved) { saved.classList.add('show'); setTimeout(()=>saved.classList.remove('show'), 1800); }
+        renderCalendar();
+      }, 600);
+    });
   }
 
   document.getElementById('popupOverlay').classList.add('open');
